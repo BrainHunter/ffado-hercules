@@ -64,6 +64,7 @@ checks in the code.""", True ),
     BoolVariable( "ENABLE_RME", "Enable/Disable support for the RME platform.", True ),
     BoolVariable( "ENABLE_DIGIDESIGN", "Enable/Disable support for Digidesign interfaces.", False ),
     BoolVariable( "ENABLE_BOUNCE", "Enable/Disable the BOUNCE device.", False ),
+    BoolVariable( "ENABLE_HERCULES", "Enable/Disable support for the HERCULES device.", False ),
     BoolVariable( "ENABLE_GENERICAVC", """\
 Enable/Disable the the generic avc part (mainly used by apple).
   Note that disabling this option might be overwritten by other devices needing
@@ -502,6 +503,7 @@ if env['ENABLE_ALL']:
     env['ENABLE_RME'] = True
     env['ENABLE_DIGIDESIGN'] = True
     env['ENABLE_BOUNCE'] = True
+    env['ENABLE_HERCULES'] = True
 
 
 env['BUILD_STATIC_LIB'] = False

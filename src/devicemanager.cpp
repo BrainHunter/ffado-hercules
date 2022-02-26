@@ -77,6 +77,10 @@
 #include "metrichalo/mh_avdevice.h"
 #endif
 
+#ifdef ENABLE_HERCULES
+#include "hercules/hercules_avdevice.h"
+#endif
+
 #include <iostream>
 #include <sstream>
 
@@ -1089,6 +1093,13 @@ DeviceManager::getDriverForDeviceDo( ConfigRom *configRom,
     debugOutput( DEBUG_LEVEL_VERBOSE, "Trying Bounce...\n" );
     if ( Bounce::Device::probe( getConfiguration(), *configRom, generic ) ) {
         return Bounce::Device::createDevice( *this, ffado_smartptr<ConfigRom>( configRom ) );
+    }
+#endif
+
+#ifdef ENABLE_HERCULES
+    debugOutput( DEBUG_LEVEL_VERBOSE, "Trying Hercules...\n" );
+    if ( Hercules::Device::probe( getConfiguration(), *configRom, generic ) ) {
+        return Hercules::Device::createDevice( *this, std::auto_ptr<ConfigRom>( configRom ) );
     }
 #endif
 

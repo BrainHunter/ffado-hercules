@@ -219,6 +219,28 @@ public:
                         fb_nodeaddr_t addr,
                         fb_octlet_t data );
 
+    /** 
+     * @brief send 32-bit compare-swap lock request and wait for response.
+     *
+     * swaps the content of \ref addr with \ref swap_value , but only if
+     * the content of \ref addr equals \ref compare_with
+     *
+     * @note takes care of endiannes
+     *
+     * @param nodeId target node ID
+     * @param addr address within target node address space
+     * @param compare_with value to compare \ref addr with
+     * @param swap_value new value to put in \ref addr
+     * @param result the value (originally) in \ref addr
+     *
+     * @return true if succesful, false otherwise
+     */
+    bool lockCompareSwap( fb_nodeid_t nodeId,
+                          fb_nodeaddr_t addr,
+                          fb_quadlet_t  compare_value,
+                          fb_quadlet_t  swap_value,
+                          fb_quadlet_t* result );
+
     /**
      * @brief send 64-bit compare-swap lock request and wait for response.
      *

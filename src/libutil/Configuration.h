@@ -54,6 +54,7 @@ public:
         eD_RME         = 40,
         eD_Bounce      = 50,
         eD_Digidesign  = 60,
+        eD_Hercules    = 70,
     };
 
     // the modes a config file can have

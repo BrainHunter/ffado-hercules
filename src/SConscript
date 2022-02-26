@@ -204,6 +204,14 @@ digidesign_source = env.Split( '\
     libstreaming/digidesign/DigidesignTransmitStreamProcessor.cpp \
 ' )
 
+hercules_source = env.Split( '\
+    hercules/hercules_avdevice.cpp \
+    libstreaming/hercules/HerculesPort.cpp \
+    libstreaming/hercules/HerculesPortInfo.cpp \
+    libstreaming/hercules/HerculesReceiveStreamProcessor.cpp \
+    libstreaming/hercules/HerculesTransmitStreamProcessor.cpp \
+' )
+
 amdtp_source = env.Split( '\
     libstreaming/amdtp/AmdtpPort.cpp \
     libstreaming/amdtp/AmdtpPortInfo.cpp \
@@ -274,6 +282,9 @@ if env['ENABLE_BOUNCE']:
     env['ENABLE_GENERICAVC'] = True
     libenv.MergeFlags( "-DENABLE_BOUNCE" )
     source += bounce_source
+if env['ENABLE_HERCULES']:
+    libenv.MergeFlags( "-DENABLE_HERCULES" )
+    source += hercules_source
 
 if env['ENABLE_GENERICAVC']:
     libenv.MergeFlags( "-DENABLE_GENERICAVC" )

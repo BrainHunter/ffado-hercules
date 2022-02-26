@@ -42,6 +42,7 @@
 #define FW_VENDORID_STANTON      0x001260
 #define FW_VENDORID_DNR          0x000F64
 #define FW_VENDORID_YAMAHA       0x00a0de
+#define FW_VENDORID_HERCULES     0x0008d3
 
 // this is the one we assign ourselves
 // maybe once we can get a real one :)

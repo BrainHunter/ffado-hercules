@@ -684,6 +684,61 @@ Ieee1394Service::write_octlet( fb_nodeid_t nodeId,
 }
 
 bool
+Ieee1394Service::lockCompareSwap( fb_nodeid_t nodeId,
+                                  fb_nodeaddr_t addr,
+                                  fb_quadlet_t compare_value,
+                                  fb_quadlet_t swap_value,
+                                  fb_quadlet_t* result )
+{
+    if (nodeId == INVALID_NODE_ID) {
+        debugWarning("operation on invalid node\n");
+        return false;
+    }    
+    #ifdef DEBUG
+    debugOutput(DEBUG_LEVEL_VERBOSE,"lockCompareSwap: node 0x%X, addr = 0x%016llX\n",
+                nodeId, addr);
+    debugOutput(DEBUG_LEVEL_VERBOSE,"  if (*(addr)==0x%08lX) *(addr)=0x%08lX\n",
+                compare_value, swap_value);
+    fb_quadlet_t buffer;
+    if(!read_quadlet( nodeId, addr,&buffer )) { 
+        debugWarning("Could not read register\n");
+    } else {
+        debugOutput(DEBUG_LEVEL_VERBOSE,"before = 0x%08lX\n", buffer);
+    }    
+    #endif
+
+    // do endiannes swapping
+    compare_value = CondSwapToBus32(compare_value);
+    swap_value    = CondSwapToBus32(swap_value);
+
+    // do separate locking here (no MutexLockHelper) since 
+    // we use read_octlet in the DEBUG code in this function
+    m_handle_lock->Lock();
+    int retval=raw1394_lock(m_handle, nodeId, addr,
+                            RAW1394_EXTCODE_COMPARE_SWAP,
+                            swap_value, compare_value, result);
+    m_handle_lock->Unlock();
+
+    if(retval) {
+        debugError("raw1394_lock failed: %s\n", strerror(errno));
+    }    
+
+    #ifdef DEBUG
+    if(!read_quadlet( nodeId, addr,&buffer )) { 
+        debugWarning("Could not read register\n");
+    } else {
+        debugOutput(DEBUG_LEVEL_VERBOSE,"after = 0x%08lX\n", buffer);
+    }    
+    #endif
+
+    result[0] = CondSwapFromBus32(result[0]);
+    result[1] = CondSwapFromBus32(result[1]);
+
+    return (retval == 0);
+}
+
+
+bool
 Ieee1394Service::lockCompareSwap64( fb_nodeid_t nodeId,
                                     fb_nodeaddr_t addr,
                                     fb_octlet_t compare_value,

@@ -513,6 +513,8 @@ Configuration::convertDriver(const std::string& driver) const {
         return eD_Bounce;
     if(driver == "DIGIDESIGN")
         return eD_Digidesign;
+    if(driver == "HERCULES")
+        return eD_Hercules;
     return eD_Unknown; // Unknown
 }
 

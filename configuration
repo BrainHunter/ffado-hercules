@@ -850,5 +850,12 @@ device_definitions = (
     driver      = "BEBOB";
     # A device-specific mixer needs to be written, there being no generic
     # bebob mixer modules.
+},
+{
+	vendorid = 0x000008D3;
+	modelid = 0x00010001;
+	vendorname = "Hercules";
+	modelname = "16/12 FW";
+	driver = "HERCULES";
 }
 );
