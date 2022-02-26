@@ -89,7 +89,7 @@ const PortEntry Ports_Hercules[] =
 
 
 Device::Device( DeviceManager& d,
-                        std::auto_ptr<ConfigRom>( configRom ))
+                        ffado_smartptr<ConfigRom>( configRom ))
     : FFADODevice( d, configRom )
     , m_iso_recv_channel ( 1 )
     , m_iso_send_channel ( 0 )
@@ -124,7 +124,7 @@ Device::probe( Util::Configuration& c, ConfigRom& configRom, bool generic )
 
 FFADODevice *
 Device::createDevice( DeviceManager& d,
-                          std::auto_ptr<ConfigRom>( configRom ))
+                          ffado_smartptr<ConfigRom>( configRom ))
 {
     return new Device(d, configRom );
 }
@@ -274,6 +274,9 @@ Device::setSamplingFrequency( int samplingFrequency )
      
      sendFunction(HERCULES_SET_RATE, set_rate, result);
 
+
+     debugOutput(DEBUG_LEVEL_VERBOSE, "set Sampling frequency to %d Hz\n", samplingFrequency);
+
      // we are interested in 32 lsb part of result
      //if (result[1] != set_rate) {
      //    debugError("Sampling frequency not set : 0x%08lX\n", result);
@@ -349,13 +352,34 @@ Device::prepare() {
     int samp_freq = getSamplingFrequency();
     unsigned int event_size_in = getEventSize();
     unsigned int event_size_out = getEventSize();
-
-	debugOutput(DEBUG_LEVEL_NORMAL, "Preparing Hercules device...\n" );
-	WriteRegister(0, HERCULES_INIT);
-	// set to 48 kHz
-	LockRegister(0, HERCULES_SET_SYNC, RATE_48000_SET);
-	ReadRegister(HERCULES_RATE);
-	ReadRegister(HERCULES_RATE);
+    unsigned int FWVersion;
+    unsigned int SerialNo;
+	
+    debugOutput(DEBUG_LEVEL_NORMAL, "Preparing Hercules device...\n" );
+	
+    //Read FW Version 	
+    FWVersion = ReadRegister(HERCULES_FW_VER);
+    debugOutput(DEBUG_LEVEL_NORMAL, "Hercules FW Version: 0x%08x\n" , FWVersion );
+    // Read Serial No.
+    SerialNo = ReadRegister(HERCULES_SERIAL_NUMBER);
+    debugOutput(DEBUG_LEVEL_NORMAL, "Hercules S/N: 0x%08x\n" , SerialNo );
+    
+    // do Init
+    WriteRegister(0, HERCULES_INIT);
+    
+    // SET SYNC as in hotplug 
+    LockRegister(0, HERCULES_SET_SYNC, 0x00000100);
+    
+      
+    // set to 48 kHz
+    LockRegister(0, HERCULES_SET_SYNC, RATE_48000_SET);	// Todo: Compare with Windows Driver behaviour
+    //LockRegister(0, HERCULES_SET_SYNC, RATE_48000);
+	
+    debugOutput(DEBUG_LEVEL_NORMAL, "Reading Rate: ...\n" );
+	
+    ReadRegister(HERCULES_RATE);
+    unsigned int rate = ReadRegister(HERCULES_RATE);
+    debugOutput(DEBUG_LEVEL_NORMAL, " Rate: 0x%08x\n", rate);
 
     // Allocate bandwidth if not previously done.
     // FIXME: The bandwidth allocation calculation can probably be
@@ -383,7 +407,9 @@ Device::prepare() {
     signed int n_events_per_packet = getNominalFramesPerPacket(samp_freq);
     m_rx_bandwidth = 25 + (n_events_per_packet*event_size_in);
     m_tx_bandwidth = 25 + (n_events_per_packet*event_size_out);
-	    
+    
+    debugOutput(DEBUG_LEVEL_NORMAL, "Assign iso channels \n");
+
     // Assign iso channels if not already done
     if (m_iso_recv_channel < 0)
         m_iso_recv_channel = get1394Service().allocateIsoChannelGeneric(m_rx_bandwidth);

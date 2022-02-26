@@ -231,6 +231,7 @@ HerculesTransmitStreamProcessor::generatePacketHeader (
                 m_last_timestamp = presentation_time;
                 if (m_tx_dbc > 0xff)
                     m_tx_dbc -= 0x100;
+                fillDataPacketHeader ( (quadlet_t *)data, length ,0);
                 return eCRV_Packet;
             }
             else   // definitely too late
@@ -245,6 +246,7 @@ HerculesTransmitStreamProcessor::generatePacketHeader (
             m_last_timestamp = presentation_time;
             if (m_tx_dbc > 0xff)
                 m_tx_dbc -= 0x100;
+            fillDataPacketHeader ( (quadlet_t *)data, length ,0);
             return eCRV_Packet;
         }
         else
@@ -466,6 +468,9 @@ unsigned int HerculesTransmitStreamProcessor::fillDataPacketHeader (
     // all channels plus possibly other midi and control data.
     signed n_events = getNominalFramesPerPacket();
 
+    //debugOutput ( DEBUG_LEVEL_VERBOSE, "test1 dbc= %u\n", (unsigned int)m_tx_dbc);
+    //debugOutput ( DEBUG_LEVEL_VERBOSE, "test1 dbs= %u", (unsigned int)dbs);
+
     // construct the packet CIP-like header.  Even if this is a data-less
     // packet the dbs field is still set as if there were data blocks
     // present.  For data-less packets the dbc is the same as the previously
@@ -484,11 +489,25 @@ unsigned int HerculesTransmitStreamProcessor::fillNoDataPacketHeader (
     // Size of a single data frame in quadlets.  See comment in
     // fillDataPacketHeader() regarding the Ultralite.
     unsigned dbs = m_event_size / 4;
+    dbs=0xdb;	// on empty packets dbs is allways 0xdb
+    
     // construct the packet CIP-like header.  Even if this is a data-less
     // packet the dbs field is still set as if there were data blocks
     // present.  For data-less packets the dbc is the same as the previously
     // transmitted block.
+    static unsigned char dbc= 0;	// Todo: Clean up here...
+    dbc++;
+    debugOutput ( DEBUG_LEVEL_VERBOSE, "test2 dbc= %u\n", (unsigned int)m_tx_dbc);
+    //debugOutput ( DEBUG_LEVEL_VERBOSE, "test2 dbc= %u\n", (unsigned int)dbc);
+    debugOutput ( DEBUG_LEVEL_VERBOSE, "test2 dbs= %u\n", (unsigned int)dbs);
+    
+    
+    //*quadlet = CondSwapToBus32(((m_Parent.get1394Service().getLocalNodeId()&0x3f)<<24) | dbc | (dbs<<16));
+     
+    
     *quadlet = CondSwapToBus32(((m_Parent.get1394Service().getLocalNodeId()&0x3f)<<24) | m_tx_dbc | (dbs<<16));
+    // debugOutput ( DEBUG_LEVEL_VERBOSE, "test2 quadlet= 0x%08x\n", (unsigned int)*quadlet);   
+    
     quadlet++;
     *quadlet = CondSwapToBus32(0xa0000000);
     quadlet++;
