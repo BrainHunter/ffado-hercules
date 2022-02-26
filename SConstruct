@@ -27,7 +27,7 @@ from __future__ import print_function
 FFADO_API_VERSION = "9"
 FFADO_VERSION="2.4.9999"
 
-from subprocess import Popen, PIPE, check_output
+from subprocess import Popen, PIPE, check_output, CalledProcessError
 import os
 import re
 import sys
@@ -229,7 +229,14 @@ def CheckJackdVer():
         print("not installed")
         return None
     jackd = stdout.decode ().rstrip ()
-    ret = check_output ((jackd, '--version')).decode() .rstrip ()
+    try:
+        ret = check_output ((jackd, '--version')).decode() .rstrip ()
+    except CalledProcessError as _:
+        print("\n\nin exception\n\n")
+        if _.returncode == 255:
+            ret = _.output.decode ().rstrip ()
+    
+    
     ret = ret.split ('\n') [-1]; # Last line.
     ret = ret.split () [2];      # Third field.
     if not version_re.match (ret):
