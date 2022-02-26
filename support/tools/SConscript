@@ -1,0 +1,56 @@
+#!/usr/bin/python
+#
+# Copyright (C) 2007-2008 Arnold Krille
+# Copyright (C) 2007-2008 Pieter Palmers
+# Copyright (C) 2012 Jonathan Woithe
+#
+# This file is part of FFADO
+# FFADO = Free FireWire (pro-)audio drivers for Linux
+#
+# FFADO is based upon FreeBoB.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) version 3 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+import os
+from string import Template
+
+Import( 'env' )
+
+e = env.Clone()
+
+# Needed to build ffado-set-nickname
+e.MergeFlags( "-I#/ -I#/src -L%ssrc -lffado" % env['build_base'] )
+if not e.GetOption( "clean" ):
+    if not env['SERIALIZE_USE_EXPAT']:
+        if 'LIBXML30_FLAGS' in env :
+            e.MergeFlags( env['LIBXML30_FLAGS'].decode() )
+        if not('LIBXML30_FLAGS' in env) :
+            e.MergeFlags( env['LIBXML26_FLAGS'].decode() )
+    else:
+        e.PrependUnique( LIBS=["expat"] )
+
+e.Command( "static_info.txt", "ffado-diag", "support/tools/ffado-diag --static > $TARGET" )
+
+e.ScanReplace( "ffado-diag.in" )
+
+e.Install( "$bindir", "ffado-diag" )
+e.Install( "$libdatadir", "static_info.txt" )
+
+if env['ENABLE_DICE']:
+    e.Program( target = "ffado-set-nickname", source = "ffado-set-nickname.cpp" )
+    e.Install( "$bindir", "ffado-set-nickname" )
+
+# Install manpages in section 1
+dest = os.path.join("$mandir", "man1", "ffado-diag.1")
+env.InstallAs(source="ffado-diag.1", target=dest)

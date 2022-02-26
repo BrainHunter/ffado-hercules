@@ -1,0 +1,59 @@
+#!/usr/bin/python
+#
+# Copyright (C) 2007-2009 Arnold Krille
+# Copyright (C) 2007-2008 Pieter Palmers
+#
+# This file is part of FFADO
+# FFADO = Free FireWire (pro-)audio drivers for Linux
+#
+# FFADO is based upon FreeBoB.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) version 3 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+import os
+from string import Template
+
+Import( 'env' )
+
+if env['BUILD_MIXER'] == 'true':
+    e = env.Clone()
+
+    pythonfiles = [ 'ffado/config.py' ]
+    for root, dirs, files in os.walk( "ffado" ):
+        for name in files:
+            if name.endswith( '.pyc' ) or '.in' in name or name.startswith("."):
+                continue
+            pythonfiles.append( os.path.join( root, name ) )
+
+    e.ScanReplace( "ffado/config.py.in" )
+    e.Depends( "ffado/config.py", "#/SConstruct" )
+    for file in pythonfiles:
+        e.InstallAs( os.path.join(e['pypkgdir'], file), file )
+
+    e.ScanReplace( "ffado-mixer.in" )
+    e.Depends( "ffado-mixer", "SConscript" )
+    e.Depends( "ffado-mixer", "#/SConstruct" )
+    e.Install( "$bindir", "ffado-mixer" )
+
+    e.ScanReplace( "ffado-mixer-profiler.in" )
+    e.Depends( "ffado-mixer-profiler", "SConscript" )
+    e.Depends( "ffado-mixer-profiler", "#/SConstruct" )
+
+    e.Install( "$sharedir/icons", "../xdg/hi64-apps-ffado.png" )
+
+    # Install the ffado-mixer manpage in section 1
+    dest = os.path.join("$mandir", "man1", "ffado-mixer.1")
+    env.InstallAs(source="ffado-mixer.1", target=dest)
+
+# vim: et

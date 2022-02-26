@@ -1,0 +1,16 @@
+#! /usr/bin/env python
+
+Import( 'env' )
+
+env = env.Clone()
+
+# At this point BUILD_DOC is either 'all' or 'user'
+doxygen_dir_list = [env["top_srcdir"] + "/libffado"]
+if env["BUILD_DOC"] == 'all':
+    doxygen_dir_list += [env["top_srcdir"] + "/src",
+                         env["top_srcdir"] + "/doc"]
+env["DOXYGEN_INPUT"] = " ".join(doxygen_dir_list)
+
+env.ScanReplace( "reference.doxygen.in" )
+
+env.Doxygen( "reference.doxygen" )

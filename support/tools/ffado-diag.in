@@ -1,0 +1,314 @@
+#!$PYTHON_INTERPRETER
+# Dollar variables are preprocessed by SConscript at build time.
+version_info = "FFADO diagnostic utility $VERSION$REVISIONSTRING"
+copyright_info = """
+(C) 2008 Pieter Palmers
+    2009-2010 Arnold Krille
+    2018 Nicolas Boulenguez, Jonathan Woithe
+"""
+static_info = "$LIBDATADIR/static_info.txt"
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3 of the License.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Test for common FFADO problems
+
+import glob
+import os.path
+import re
+import subprocess
+import sys
+
+# Prefer reproducible output with few non-ASCII characters.
+os.environ ["LC_ALL"] = "C"
+
+# Consistent formatting.
+def show_pair (key, value):
+    # rstrip () for convenience, but do not assume that value is a string.
+    print ("{:25} {}".format (key, value).rstrip ())
+def indent (lines):
+    print ("  {}".format (lines.rstrip ().replace ("\n", "\n  ")))
+
+# Convenient shortcuts.
+def stdout (*args):
+    return subprocess.check_output (args).decode ("utf8")
+
+def which (command):
+    popen = subprocess.Popen (("which", command), stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE)
+    stdout, stderr = popen.communicate ()
+    if popen.returncode == 0:
+        return stdout.decode ("utf8").rstrip ()
+    elif popen.returncode == 1:
+        return None
+    else:
+        print (stderr)
+        sys.exit (1)
+
+# Parse command line.
+usage = """Usage: ffado-diag [--static | -V | --version | --usage]
+  --static       Only display executable paths and libraries.
+  -V, --version  Display version information.
+  --usage        Print a short usage message and exit."""
+if len (sys.argv) == 1:
+    static_option = False
+elif len (sys.argv) == 2:
+    if sys.argv [1] == "--static":
+        static_option = True
+    elif sys.argv [1] in ("-V", "--version"):
+        print (version_info)
+        sys.exit (0)
+    elif sys.argv [1] == "--usage":
+        print (usage)
+        sys.exit (0)
+    else:
+        print (usage)
+        sys.exit (1)
+else:
+    print (usage)
+    sys.exit (1)
+
+if not(static_option):
+    print (version_info)
+    print (copyright_info)
+
+for command in ("gcc", "g++", "pyuic4", "pyuic5"):
+    path = which (command)
+    show_pair (command, path)
+    if path:
+        version = stdout (path, "--version")
+        show_pair ('', version [:version.find ("\n")])
+
+# jackd --version exits with a non-zero status (tested with jackd 1.9.10).
+path = which ("jackd")
+show_pair ("jackd", path)
+if path:
+    popen = subprocess.Popen ((path, "--version"), stdout=subprocess.PIPE)
+    version, _ = popen.communicate ()
+    version = version.decode ("utf8")
+    show_pair ('', version [:version.find ("\n")])
+
+pkg_config = which ("pkg-config")
+show_pair ("pkg-config", pkg_config)
+
+if pkg_config:
+    for lib in ("jack", "libraw1394", "libavc1394", "libiec61883", "libxml++-2.6", "dbus-1"):
+        if subprocess.call ((pkg_config, "--exists", lib)):
+            show_pair (lib, "not found")
+        else:
+            show_pair (lib, stdout (pkg_config, "--modversion", lib))
+            show_pair ('',  stdout (pkg_config, "--cflags", "--libs", lib))
+
+# If the "static" command line argument has been given, stop here.
+# Else, attempt to display static_info.txt and go on.
+if static_option:
+    sys.exit (0)
+
+print ('')
+show_pair ("Build time info", static_info)
+try:
+    with open (static_info, "r" ) as f:
+        for line in f:
+            indent (line)
+except:
+    indent ("Failed to read build time info.")
+
+print ('')
+kernel_version = stdout ("uname", "-r").rstrip ()
+show_pair ("kernel version", kernel_version)
+
+uname_v = stdout ("uname", "-v")
+show_pair ("Preempt (low latency)", " PREEMPT " in uname_v and not " RT " in uname_v)
+show_pair ("RT patched", "PREEMPT RT" in uname_v)
+# Hint:
+# The main parts of the rt patches are in mainline-kernels nowadays.
+# Performance with stock kernels is sufficient...
+
+fw_devices = glob.glob ("/dev/fw*")
+show_pair ("/dev/fw*", fw_devices)
+if fw_devices:
+    indent (stdout (*(["ls", "-lh"] + fw_devices)))
+
+show_pair ("User IDs", stdout ("id"))
+
+show_pair ("uname -a", stdout ("uname", "-a"))
+
+lspci = which ("lspci")
+if not lspci and os.path.exists ("/sbin/lspci"):
+    lspci = "/sbin/lspci"
+show_pair ("lspci", lspci)
+if lspci:
+    for m in re.findall ("^([^ ]*).*1394.*", stdout (lspci), re.MULTILINE):
+        indent (stdout (lspci, "-vv", "-nn", "-s", m))
+
+lscpu = which ("lscpu")
+show_pair ("lscpu", lscpu)
+if lscpu:
+    indent (stdout (lscpu))
+else:
+    print ("/proc/cpuinfo")
+    with open ("/proc/cpuinfo") as f:
+        for l in f:
+            indent (l)
+
+######################################################################
+class IRQ:
+    def __init__(self, number):
+        self.number              = number
+        self.pid                 = ""
+        self.scheduling_class    = ""
+        self.scheduling_priority = ""
+        self.drivers             = ""
+        self.cpu_counts          = ""
+    def description (self):
+        return "IRQ{:>4} PID{:>5} count{:>18} Sched{:>4} priority{:>4} drivers {}"\
+            .format (self.number, self.pid, self.cpu_counts, self.scheduling_class,
+                     self.scheduling_priority, self.drivers)
+
+class SoftIRQ:
+    def __init__(self, pid, scheduling_class, scheduling_priority, fullname):
+        self.pid                 = pid
+        self.fullname            = fullname
+        self.scheduling_class    = scheduling_class
+        self.scheduling_priority = scheduling_priority
+    def name (self):
+        return "{}-{}".format (self.fullname, self.pid)
+    def description (self):
+        return "SoftIRQ{:>12} PID{:>6} Sched{:>4} priority{:>4}) name softirq-{}"\
+            .format (self.name (), self.pid, self.scheduling_class,
+                     self.scheduling_priority, self.fullname)
+
+# get PID info
+outtext = stdout ("ps", "-eLo", "pid,cmd,class,rtprio")
+
+softIRQs = {}
+for m in re.findall (r"^([0-9]+) +\[softirq-(.*)\] +([A-Z]+) +([-0-9]+)", outtext, re.MULTILINE):
+    irq = SoftIRQ (pid                 = m.group (1),
+                   fullname            = m.group (2),
+                   scheduling_class    = m.group (3),
+                   scheduling_priority = m.group (4))
+    softIRQs [irq.name ()] = irq
+
+IRQs = {}
+for m in re.findall (r"^([0-9]+) +\[IRQ-([0-9]+)\] +([A-Z]{2}) +([-0-9]+)", outtext, re.MULTILINE):
+    irq = IRQ (number = int (m.group (2)))
+    IRQs [irq.number] = irq
+    irq.pid = m.group (1)
+    irq.scheduling_class    = m.group (3)
+    irq.scheduling_priority = m.group (4)
+
+# get irq info
+regex_irq = re.compile (r"^ *([0-9]+): *((?:[0-9]+ +)+)(.*)$")
+with open ("/proc/interrupts") as f:
+    for line in f:
+        m = regex_irq.search (line)
+        if m:
+            irq_number = int (m.group(1))
+            if irq_number in IRQs:
+                irq = IRQs [irq_number]
+            else:
+                irq = IRQ (number = irq_number)
+                IRQs [irq_number] = irq
+            irq.cpu_counts = ",".join (m.group (2).split ())
+            irq.drivers    = ",".join (m.group (3).split ())
+
+print ("\nHardware interrupts")
+for _, irq in sorted (IRQs.items ()):
+    indent (irq.description ())
+print ("\nSoftware interrupts")
+for _, irq in sorted (softIRQs.items ()):
+    indent (irq.description ())
+print ('')
+
+######################################################################
+
+def module_loaded (module_name, procfile):
+    with open (procfile) as f:
+        for l in f:
+            if module_name in l or module_name.replace ("-", "_") in l:
+                return True
+    return False
+
+module_dir = "/lib/modules/" + kernel_version
+show_pair ("module directory", module_dir)
+
+class Stack:
+    def __init__ (self, modules, main_module):
+        self.present = True
+        self.loaded  = True
+        for module_name in modules:
+            if module_name in stdout ("find", module_dir, "-name", module_name + ".ko"):
+                indent (module_name + " present")
+            else:
+                indent (module_name + " not present")
+                self.present = False
+
+            if module_loaded (module_name, "/proc/modules"):
+                indent (module_name + " loaded")
+            else:
+                indent (module_name + " not loaded")
+                self.loaded  = False
+
+        self.active = self.loaded and module_loaded (main_module, "/proc/interrupts")
+        show_pair ("stack active", self.active)
+
+        self.statically_linked = not self.loaded and os.access ("/sys/module/" + main_module, os.F_OK)
+        show_pair ("statically linked", self.statically_linked)
+
+print ("Old 1394 stack")
+oldstack = Stack (("ieee1394", "ohci1394", "raw1394"), "ohci1394")
+
+print ("New 1394 stack")
+newstack = Stack (("firewire-core", "firewire-ohci"), "firewire-ohci")
+
+print ("Kernel support:")
+if (oldstack.loaded or oldstack.statically_linked) and \
+   (newstack.loaded or newstack.statically_linked):
+    indent ("""Both old and new FireWire kernel modules are loaded, your system
+configuration is bogus.""")
+    sys.exit (1)
+elif newstack.loaded or newstack.statically_linked:
+    indent ("""The new FireWire kernel stack is loaded.
+If running a kernel earlier than 2.6.37 and problems are experienced, either
+try with the old FireWire kernel stack or upgrade to a newer kernel
+(preferrably 2.6.37 or later).""")
+    sys.exit (1)
+elif oldstack.statically_linked:
+    indent ("[PASS] Kernel drivers statically linked into the kernel.")
+elif not oldstack.present:
+    indent ("""FireWire kernel module(s) not found.
+Please ensure that the raw1394 module is loaded.""")
+    sys.exit (1)
+elif not oldstack.loaded:
+    indent ("""FireWire kernel stack not present.
+ Please compile the kernel with FireWire support.""")
+    sys.exit (1)
+else:
+    indent ("[PASS] Kernel modules present and correctly loaded.")
+
+######################################################################
+print ("/dev/raw1394 devices:")
+
+if not os.path.exists ("/dev/raw1394"):
+    indent ("""/dev/raw1394 device node not present.
+Please fix your udev configuration or add it as a static node.""")
+    sys.exit (1)
+
+try:
+    with open ("/dev/raw1394", "w"):
+        pass
+except:
+    indent ("""Not enough permissions to access /dev/raw1394 device.
+Please fix your udev configuration, the node permissions or
+the user/group permissions.""")
+    sys.exit (1)
+
+indent ("[PASS] /dev/raw1394 node present and accessible.")

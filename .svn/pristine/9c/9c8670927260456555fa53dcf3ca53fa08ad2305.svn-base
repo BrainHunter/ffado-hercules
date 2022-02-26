@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright (C) 2006-2018 FFADO development team -->
+<component type="desktop">
+  <id>ffado.org-ffadomixer.desktop</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0 OR GPL-3.0</project_license>
+  <name>ffado-mixer</name>
+  <summary>A graphical front-end for the FFADO mixer DBus controls exposed by ffado-dbus-server</summary>
+  <translation/>
+  <description>
+    <p>
+      ffado-mixer presents a graphical application allowing a FireWire audio interface to be controlled.
+      The extent of the control is determined by the level of support for the
+      device in FFADO and in ffado-dbus-server.
+      Typical controls offered by ffado-mixer include faders for the on-board mixer,
+      phantom power control, mode switches and so on.
+    </p>
+  </description>
+  <screenshots>
+    <screenshot type="default">
+      <image>http://ffado.org/appdata/ffado-mixer-screenshot.png</image>
+      <caption>Example of main ffado-mixer window.</caption>
+    </screenshot>
+  </screenshots>
+
+  <url type="homepage">http://ffado.org/</url>
+  <update_contact>ffado-devel@lists.sourceforge.net</update_contact>
+</component>
